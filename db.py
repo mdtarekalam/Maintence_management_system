@@ -16,18 +16,53 @@ def get_connection():
 
 def get_buildings():
     conn = get_connection()
-    if conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM buildings")
-        results = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        return results
-    return []
+    if not conn:
+        return []
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, building_name FROM buildings")
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return results
+
+
+def get_rooms(building_id):
+    conn = get_connection()
+    if not conn:
+        return []
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, room_number, room_type FROM rooms WHERE building_id = %s", (building_id,))
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return results
+
+
+def get_computers(room_id):
+    conn = get_connection()
+    if not conn:
+        return []
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, computer_number FROM computers WHERE room_id = %s ORDER BY computer_number", (room_id,))
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return results
+
+
+def get_devices():
+    conn = get_connection()
+    if not conn:
+        return []
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, device_name FROM devices")
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return results
 
 
 def check_user_login(user_id, password, role):
-    """Check login for Student, Faculty, or Staff against the users table."""
     conn = get_connection()
     if not conn:
         return None
@@ -43,7 +78,6 @@ def check_user_login(user_id, password, role):
 
 
 def check_admin_login(username, password):
-    """Check login for Admin against the admin table."""
     conn = get_connection()
     if not conn:
         return None
@@ -59,7 +93,6 @@ def check_admin_login(username, password):
 
 
 def register_user(full_name, user_id, email, password, department, role):
-    """Insert a new user into the users table."""
     conn = get_connection()
     if not conn:
         return False, "Could not connect to database"
@@ -76,12 +109,53 @@ def register_user(full_name, user_id, email, password, department, role):
         return True, "Registration successful"
     except mysql.connector.Error as err:
         conn.close()
-        if err.errno == 1062:  # duplicate entry error code
+        if err.errno == 1062:
             return False, "This ID or email is already registered"
         return False, f"Database error: {err}"
 
 
+def submit_complaint(user_id, computer_id, device_id, description):
+    conn = get_connection()
+    if not conn:
+        return False, "Could not connect to database"
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO complaints (user_id, computer_id, device_id, description, status, priority) "
+            "VALUES (%s, %s, %s, %s, 'Pending', 'Low')",
+            (user_id, computer_id, device_id, description)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return True, "Complaint submitted successfully"
+    except mysql.connector.Error as err:
+        conn.close()
+        return False, f"Database error: {err}"
+
+
+def get_user_complaints(user_id):
+    conn = get_connection()
+    if not conn:
+        return []
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT c.id, c.description, c.status, c.priority, c.admin_note, c.created_at,
+               comp.computer_number, r.room_number, b.building_name, d.device_name
+        FROM complaints c
+        JOIN computers comp ON c.computer_id = comp.id
+        JOIN rooms r ON comp.room_id = r.id
+        JOIN buildings b ON r.building_id = b.id
+        JOIN devices d ON c.device_id = d.id
+        WHERE c.user_id = %s
+        ORDER BY c.created_at DESC
+    """, (user_id,))
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return results
+
+
 if __name__ == "__main__":
-    buildings = get_buildings()
-    for b in buildings:
-        print(b)
+    print("Buildings:", get_buildings())
+    print("Devices:", get_devices())
