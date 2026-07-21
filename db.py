@@ -19,7 +19,7 @@ def get_buildings():
     if not conn:
         return []
     cursor = conn.cursor()
-    cursor.execute("SELECT id, building_name FROM buildings")
+    cursor.execute("SELECT MIN(id), building_name FROM buildings GROUP BY building_name ORDER BY building_name")
     results = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -134,6 +134,26 @@ def submit_complaint(user_id, computer_id, device_id, description):
         return False, f"Database error: {err}"
 
 
+def submit_suggestion(user_id, computer_id, device_id, description):
+    conn = get_connection()
+    if not conn:
+        return False, "Could not connect to database"
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO suggestions (user_id, computer_id, device_id, description) "
+            "VALUES (%s, %s, %s, %s)",
+            (user_id, computer_id, device_id, description)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return True, "Suggestion submitted successfully"
+    except mysql.connector.Error as err:
+        conn.close()
+        return False, f"Database error: {err}"
+
+
 def get_user_complaints(user_id):
     conn = get_connection()
     if not conn:
@@ -150,6 +170,194 @@ def get_user_complaints(user_id):
         WHERE c.user_id = %s
         ORDER BY c.created_at DESC
     """, (user_id,))
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return results
+
+
+def get_all_complaints():
+    conn = get_connection()
+    if not conn:
+        return []
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT c.id, c.description, c.status, c.priority, c.admin_note, c.created_at,
+               comp.computer_number, r.room_number, b.building_name, d.device_name,
+               u.full_name AS reporter_name, u.user_id AS reporter_id
+        FROM complaints c
+        JOIN computers comp ON c.computer_id = comp.id
+        JOIN rooms r ON comp.room_id = r.id
+        JOIN buildings b ON r.building_id = b.id
+        JOIN devices d ON c.device_id = d.id
+        LEFT JOIN users u ON c.user_id = u.id
+        ORDER BY c.created_at DESC
+    """)
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return results
+
+
+def update_complaint(complaint_id, status, priority, admin_note):
+    conn = get_connection()
+    if not conn:
+        return False, "Could not connect to database"
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE complaints SET status = %s, priority = %s, admin_note = %s WHERE id = %s",
+            (status, priority, admin_note, complaint_id)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return True, "Complaint updated successfully"
+    except mysql.connector.Error as err:
+        conn.close()
+        return False, f"Database error: {err}"
+
+
+def get_device_complaint_stats():
+    conn = get_connection()
+    if not conn:
+        return []
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT d.device_name, COUNT(*) AS complaint_count
+        FROM complaints c
+        JOIN devices d ON c.device_id = d.id
+        GROUP BY d.device_name
+        ORDER BY complaint_count DESC
+        LIMIT 5
+    """)
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return results
+
+
+def get_status_summary():
+    conn = get_connection()
+    if not conn:
+        return []
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT status, COUNT(*) AS count
+        FROM complaints
+        GROUP BY status
+    """)
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return results
+
+
+def get_priority_summary():
+    conn = get_connection()
+    if not conn:
+        return []
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT priority, COUNT(*) AS count
+        FROM complaints
+        GROUP BY priority
+    """)
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return results
+
+
+# Admin helper functions below
+
+def get_all_complaints():
+    conn = get_connection()
+    if not conn:
+        return []
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT c.id, c.description, c.status, c.priority, c.admin_note, c.created_at,
+               comp.computer_number, r.room_number, b.building_name, d.device_name,
+               u.full_name AS reporter_name, u.user_id AS reporter_id
+        FROM complaints c
+        JOIN computers comp ON c.computer_id = comp.id
+        JOIN rooms r ON comp.room_id = r.id
+        JOIN buildings b ON r.building_id = b.id
+        JOIN devices d ON c.device_id = d.id
+        LEFT JOIN users u ON c.user_id = u.id
+        ORDER BY c.created_at DESC
+    """)
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return results
+
+
+def update_complaint(complaint_id, status, priority, admin_note):
+    conn = get_connection()
+    if not conn:
+        return False, "Could not connect to database"
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE complaints SET status = %s, priority = %s, admin_note = %s WHERE id = %s",
+            (status, priority, admin_note, complaint_id)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return True, "Complaint updated successfully"
+    except mysql.connector.Error as err:
+        conn.close()
+        return False, f"Database error: {err}"
+
+
+def get_device_complaint_stats():
+    conn = get_connection()
+    if not conn:
+        return []
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT d.device_name, COUNT(*) AS complaint_count
+        FROM complaints c
+        JOIN devices d ON c.device_id = d.id
+        GROUP BY d.device_name
+        ORDER BY complaint_count DESC
+        LIMIT 5
+    """)
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return results
+
+
+def get_status_summary():
+    conn = get_connection()
+    if not conn:
+        return []
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT status, COUNT(*) AS count
+        FROM complaints
+        GROUP BY status
+    """)
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return results
+
+
+def get_priority_summary():
+    conn = get_connection()
+    if not conn:
+        return []
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT priority, COUNT(*) AS count
+        FROM complaints
+        GROUP BY priority
+    """)
     results = cursor.fetchall()
     cursor.close()
     conn.close()

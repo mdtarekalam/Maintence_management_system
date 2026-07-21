@@ -4,6 +4,10 @@ from screens.welcome import show_welcome_screen
 from screens.login import show_login_screen
 from screens.home import show_home_screen
 from screens.register import show_register_screen
+from screens.report import show_report_screen
+from screens.suggestion import show_suggestion_screen
+from screens.status import show_status_screen
+from screens.admin import show_admin_screen
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -48,6 +52,7 @@ app.bind("<Configure>", resize_container)
 
 
 def navigate(screen_name, *args):
+    print(f"DEBUG navigate called: {screen_name}")
     if screen_name == "welcome":
         show_welcome_screen(container, navigate)
     elif screen_name == "login":
@@ -56,6 +61,14 @@ def navigate(screen_name, *args):
         show_home_screen(container, navigate, *args)
     elif screen_name == "register":
         show_register_screen(container, navigate, *args)
+    elif screen_name == "report":
+        show_report_screen(container, navigate, *args)
+    elif screen_name == "suggestion":
+        show_suggestion_screen(container, navigate, *args)
+    elif screen_name == "status":
+        show_status_screen(container, navigate, *args)
+    elif screen_name == "admin":
+        show_admin_screen(container, navigate, *args)
 
 
 navigate("welcome")
