@@ -34,7 +34,7 @@ def draw_background(event=None):
 
 bg_canvas.bind("<Configure>", draw_background)
 
-container = ctk.CTkFrame(app, corner_radius=20, fg_color="#22223b", width=340, height=480)
+container = ctk.CTkFrame(app, corner_radius=20, fg_color="#22223b", width=520, height=520)
 container.place(relx=0.5, rely=0.5, anchor="center")
 container.pack_propagate(False)
 
@@ -42,8 +42,8 @@ container.pack_propagate(False)
 def resize_container(event=None):
     w = app.winfo_width()
     h = app.winfo_height()
-    card_w = max(340, min(480, int(w * 0.4)))
-    card_h = max(480, min(620, int(h * 0.85)))
+    card_w = max(340, min(int(w * 0.8), 720))
+    card_h = max(520, min(int(h * 0.85), 760))
     container.configure(width=card_w, height=card_h)
     container.place(relx=0.5, rely=0.5, anchor="center")
 

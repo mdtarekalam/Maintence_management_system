@@ -119,7 +119,18 @@ def submit_complaint(user_id, computer_id, device_id, description):
     if not conn:
         return False, "Could not connect to database"
     try:
-        cursor = conn.cursor()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(
+            "SELECT id FROM complaints WHERE user_id = %s AND computer_id = %s AND device_id = %s "
+            "AND status != 'Removed'",
+            (user_id, computer_id, device_id)
+        )
+        existing = cursor.fetchone()
+        if existing:
+            cursor.close()
+            conn.close()
+            return False, "Device already issued"
+
         cursor.execute(
             "INSERT INTO complaints (user_id, computer_id, device_id, description, status, priority) "
             "VALUES (%s, %s, %s, %s, 'Pending', 'Low')",
@@ -311,6 +322,49 @@ def update_complaint(complaint_id, status, priority, admin_note):
     except mysql.connector.Error as err:
         conn.close()
         return False, f"Database error: {err}"
+
+
+def remove_complaint(complaint_id, removed_by=None):
+    conn = get_connection()
+    if not conn:
+        return False, "Could not connect to database"
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE complaints SET status = %s, admin_note = %s WHERE id = %s",
+            ("Removed", f"Removed by {removed_by or 'Admin'}", complaint_id)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return True, "Complaint removed successfully"
+    except mysql.connector.Error as err:
+        conn.close()
+        return False, f"Database error: {err}"
+
+
+def get_complaint_history():
+    conn = get_connection()
+    if not conn:
+        return []
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT c.id, c.description, c.status, c.priority, c.admin_note, c.created_at,
+               d.device_name, b.building_name, r.room_number,
+               u.full_name AS reporter_name, u.user_id AS reporter_id
+        FROM complaints c
+        LEFT JOIN computers comp ON c.computer_id = comp.id
+        LEFT JOIN rooms r ON comp.room_id = r.id
+        LEFT JOIN buildings b ON r.building_id = b.id
+        LEFT JOIN devices d ON c.device_id = d.id
+        LEFT JOIN users u ON c.user_id = u.id
+        WHERE c.status = 'Removed' OR c.admin_note LIKE 'Removed by%'
+        ORDER BY c.created_at DESC
+    """)
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return results
 
 
 def get_device_complaint_stats():
