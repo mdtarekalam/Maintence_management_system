@@ -308,7 +308,11 @@ def seed_data():
         room_id = room_map[(building_id, room_number)]
         if count <= 0:
             continue
-        for n in range(1, count + 1):
+        # Prevent creating many computer entries for simple classrooms
+        effective_count = count
+        if room_type and "classroom" in room_type.lower() and count > 1:
+            effective_count = 1
+        for n in range(1, effective_count + 1):
             computer_rows.append((room_id, str(n)))
 
     cursor.executemany(

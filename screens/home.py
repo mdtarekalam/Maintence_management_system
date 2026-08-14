@@ -41,11 +41,9 @@ def show_home_screen(container, navigate, role, user_data):
 
         # Status tracker button
         status_btn = ctk.CTkButton(container, text="Track my issues",
-                                    height=38, corner_radius=8,
-                                    font=("Segoe UI", 13, "bold"),
-                                    fg_color="#2ecc71",
-                                    hover_color="#28b463",
-                                    command=lambda: navigate("status", role, user_data))
+                        height=38, corner_radius=8,
+                        font=("Segoe UI", 13, "bold"),
+                        command=lambda: navigate("status", role, user_data))
         status_btn.pack(fill="x", padx=35, pady=(0, 16))
 
         # My complaints label

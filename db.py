@@ -5,7 +5,7 @@ def get_connection():
         conn = mysql.connector.connect(
             host="localhost",
             user="root",
-            password="1234",
+            password="Caregiver123!",
             database="mms_db"
         )
         return conn
@@ -18,7 +18,7 @@ def get_buildings():
     conn = get_connection()
     if not conn:
         return []
-    cursor = conn.cursor()
+    cursor = conn.cursor(buffered=True)
     cursor.execute("SELECT MIN(id), building_name FROM buildings GROUP BY building_name ORDER BY building_name")
     results = cursor.fetchall()
     cursor.close()
@@ -48,6 +48,62 @@ def get_computers(room_id):
     cursor.close()
     conn.close()
     return results
+
+
+def ensure_computer_exists(room_id, computer_number):
+    conn = get_connection()
+    if not conn:
+        return None
+    cursor = conn.cursor()
+    # Check column data type to handle numeric computer_number columns
+    cursor.execute("SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='computers' AND COLUMN_NAME='computer_number'")
+    col = cursor.fetchone()
+    numeric_col = False
+    if col:
+        dtype = col[0].lower()
+        if dtype in ("int", "integer", "smallint", "tinyint", "mediumint", "bigint"):
+            numeric_col = True
+
+    comp_value = computer_number
+    if numeric_col:
+        try:
+            comp_value = int(str(computer_number))
+        except Exception:
+            comp_value = 0
+
+    cursor.execute("SELECT id FROM computers WHERE room_id = %s AND computer_number = %s", (room_id, comp_value))
+    row = cursor.fetchone()
+    if row:
+        comp_id = row[0]
+        cursor.close()
+        conn.close()
+        return comp_id
+    cursor.execute("INSERT INTO computers (room_id, computer_number) VALUES (%s, %s)", (room_id, comp_value))
+    conn.commit()
+    comp_id = cursor.lastrowid
+    cursor.close()
+    conn.close()
+    return comp_id
+
+
+def ensure_device_exists(device_name):
+    conn = get_connection()
+    if not conn:
+        return None
+    cursor = conn.cursor(buffered=True)
+    cursor.execute("SELECT id FROM devices WHERE device_name = %s", (device_name,))
+    row = cursor.fetchone()
+    if row:
+        dev_id = row[0]
+        cursor.close()
+        conn.close()
+        return dev_id
+    cursor.execute("INSERT INTO devices (device_name) VALUES (%s)", (device_name,))
+    conn.commit()
+    dev_id = cursor.lastrowid
+    cursor.close()
+    conn.close()
+    return dev_id
 
 
 def get_devices():
